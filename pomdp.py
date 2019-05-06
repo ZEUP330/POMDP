@@ -53,10 +53,11 @@ class DDPG_LSTM(object):
 
         self.target_actor_init_h_batch = self.actor_init_h_batch = (self.hidden_a, self.hidden_a)
         self.target_critic_init_h_batch = self.critic_init_h_batch = (self.hidden_c, self.hidden_c)
+        self.discounting_mat_dict = {}
 
     def choose_action(self, state, actor_init_hidden_cm):
-        state_agent = torch.from_numpy(state[:14].reshape(1, 14, 1).astype(np.float32))
-        state_rider = torch.from_numpy(state[14:].reshape(1, 10, 1).astype(np.float32))
+        state_agent = torch.from_numpy(np.expand_dims(state[:14].reshape(1, 14, 1).astype(np.float32),axis=2))
+        state_rider = torch.from_numpy(np.expand_dims(state[14:].reshape(1, 10, 1).astype(np.float32), axis=2))
         action_value, actor_init_hidden_cm = self.Actor_eval.forward(state_agent, state_rider, actor_init_hidden_cm)
         action_value = action_value.cpu().data.numpy()
         return action_value+self.noise.noise(), actor_init_hidden_cm
@@ -115,16 +116,19 @@ class DDPG_LSTM(object):
             self.target_critic_init_h_batch = self.critic_init_h_batch
             pass
         else:
-            state_agent = torch.from_numpy(state_trace_batch[:, :-OPT_LENGTH, :14].
-                                           reshape(BATCH_SIZE, 14, 1).astype(np.float32))
-            state_rider = torch.from_numpy(state_trace_batch[:, :-OPT_LENGTH, 14:].
-                                           reshape(BATCH_SIZE, 10, 1).astype(np.float32))
+            state_agent = state_trace_batch[:, :-OPT_LENGTH, :14].reshape(BATCH_SIZE, 14, 1).astype(np.float32)
+            state_agent = np.expand_dims(state_agent, axis=2)
+            state_agent = torch.from_numpy(state_agent)
+            state_rider = state_trace_batch[:, :-OPT_LENGTH, 14:].reshape(BATCH_SIZE, 10, 1).astype(np.float32)
+            state_rider = np.expand_dims(state_rider, axis=2)
+            state_rider = torch.from_numpy(state_rider)
             not_use, self.actor_init_h_batch = self.Actor_eval.forward(
                         state_agent, state_rider, self.actor_init_h_batch)
             self.target_actor_init_h_batch = self.actor_init_h_batch
 
-            action = torch.from_numpy(action_trace_batch[:, :-OPT_LENGTH, :].
-                                      reshape(BATCH_SIZE, 4, 1).astype(np.float32))
+            action = action_trace_batch[:, :-OPT_LENGTH, :].reshape(BATCH_SIZE, 4, 1).astype(np.float32)
+            action = np.expand_dims(action, axis=2)
+            action = torch.from_numpy(action)
             not_use, self.critic_init_h_batch = self.Critic_eval.forward(
                         state_agent, state_rider, action, self.critic_init_h_batch)
             self.target_critic_init_h_batch = self.critic_init_h_batch
@@ -136,16 +140,44 @@ class DDPG_LSTM(object):
             done_trace_batch = done_trace_batch[:, -OPT_LENGTH:, :]
 
         # **************************Obtain target output*****************************
-        state_agent_t = torch.from_numpy(state_trace_batch[:, :, :14].reshape(BATCH_SIZE, 14, -1).astype(np.float32))
-        state_rider_t = torch.from_numpy(state_trace_batch[:, :, 14:].reshape(BATCH_SIZE, 10, -1).astype(np.float32))
+        state_agent_t = state_trace_batch[:, :, :14].reshape(BATCH_SIZE, 14, -1).astype(np.float32)
+        state_agent_t = np.expand_dims(state_agent_t, axis=2)
+        state_rider_t = state_trace_batch[:, :, 14:].reshape(BATCH_SIZE, 10, -1).astype(np.float32)
+        state_rider_t = np.expand_dims(state_rider_t, axis=2)
+        state_agent_t = torch.from_numpy(state_agent_t)
+        state_rider_t = torch.from_numpy(state_rider_t)
         next_action_batch, not_use = self.Actor_target.forward(
                     state_agent_t, state_rider_t, self.target_actor_init_h_batch)
         next_action_trace_batch = np.concatenate([action_trace_batch, next_action_batch.cpu().data.numpy()], axis=1)
-        next_action_trace_batch = torch.from_numpy(next_action_trace_batch.astype(np.float32))
-        target_lastQ_batch = self.Critic_target.forward(
-                    state_agent_t, state_rider_t, next_action_trace_batch, self.target_critic_init_h_batch)
+        (a, b, c) = next_action_trace_batch.shape
+        next_action_trace_batch = next_action_trace_batch.reshape(a, c, b).astype(np.float32)
+        next_action_trace_batch = np.expand_dims(next_action_trace_batch, axis=2)
+        next_action_trace_batch = torch.from_numpy(next_action_trace_batch)
+        target_last_Q_batch, not_use = self.Critic_target.forward(
+            state_agent_t, state_rider_t, next_action_trace_batch, self.target_critic_init_h_batch)
 
-
+        # **************************Control the length of time-step for gradient*****************************
+        if trace_length <= OPT_LENGTH:
+            update_length = np.minimum(trace_length, OPT_LENGTH // 1)  # //denom: 2(opt1) #1(opt0) #OPT_LENGTH(opt2)
+        else:
+            update_length = OPT_LENGTH // 1  # //denom: 2(opt1) #1(opt0) #OPT_LENGTH(opt2)
+        target_lastQ_batch_masked = target_last_Q_batch * (1. - done_trace_batch[:, -1])
+        rQ = np.concatenate([np.squeeze(reward_trace_batch[:, -update_length:], axis=-1),
+                             target_lastQ_batch_masked], axis=1)
+        try:
+            discounting_mat = self.discounting_mat_dict[update_length]
+        except KeyError:
+            discounting_mat = np.zeros(shape=(update_length,update_length+1),dtype=np.float)
+            for i in range(update_length):
+                discounting_mat[i,:i] = 0.
+                discounting_mat[i,i:] = GAMMA ** np.arange(0.,-i+update_length+1)
+            discounting_mat = np.transpose(discounting_mat)
+            self.discounting_mat_dict[update_length] = discounting_mat
+        try:
+            y_trace_batch = np.expand_dims(np.matmul(rQ,discounting_mat),axis=-1)
+        except Exception as e:
+            print('?')
+            raise
 
 
 if __name__ == "__main__":

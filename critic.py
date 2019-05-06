@@ -16,19 +16,19 @@ class CriticNet(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(CriticNet, self).__init__()
         self.out_put_size = OUT_PUT_SIZE
-        self.conv1 = nn.Conv1d(in_channels=14, out_channels=64,kernel_size=1, stride=LAYER1_SIZE,)
+        self.conv1 = nn.Conv2d(in_channels=14, out_channels=64, kernel_size=1, stride=LAYER1_SIZE,)
         self.conv1.weight.data.normal_(0, 0.1)
-        self.conv2 = nn.Conv1d(64, 128, 1, LAYER1_SIZE, )
+        self.conv2 = nn.Conv2d(64, 128, 1, LAYER1_SIZE, )
         self.conv2.weight.data.normal_(0, 0.1)
 
-        self.conv3 = nn.Conv1d(10, 64, 1, LAYER1_SIZE, )
+        self.conv3 = nn.Conv2d(10, 64, 1, LAYER1_SIZE, )
         self.conv3.weight.data.normal_(0, 0.1)
-        self.conv4 = nn.Conv1d(64, 128, 1, LAYER1_SIZE, )
+        self.conv4 = nn.Conv2d(64, 128, 1, LAYER1_SIZE, )
         self.conv4.weight.data.normal_(0, 0.1)
 
-        self.conv5 = nn.Conv1d(action_dim, 64, 1, LAYER1_SIZE, )
+        self.conv5 = nn.Conv2d(action_dim, 64, 1, LAYER1_SIZE, )
         self.conv5.weight.data.normal_(0, 0.1)
-        self.conv6 = nn.Conv1d(64, 256, 1, LAYER1_SIZE, )
+        self.conv6 = nn.Conv2d(64, 256, 1, LAYER1_SIZE, )
         self.conv6.weight.data.normal_(0, 0.1)
 
         self.rnn = nn.LSTM(input_size=512,
