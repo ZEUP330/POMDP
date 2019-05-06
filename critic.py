@@ -8,13 +8,14 @@ import math
 # Hyper-Parameters
 LAYER1_SIZE = 192
 LEARNING_RATE = 0.001
+NUM_RNN_LAYER = 4
 TAU = 0.
-RNN = 384
+OUT_PUT_SIZE = 384
 
 class CriticNet(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(CriticNet, self).__init__()
-        self.rnn_size = RNN
+        self.out_put_size = OUT_PUT_SIZE
         self.conv1 = nn.Conv1d(in_channels=14, out_channels=64,kernel_size=1, stride=LAYER1_SIZE,)
         self.conv1.weight.data.normal_(0, 0.1)
         self.conv2 = nn.Conv1d(64, 128, 1, LAYER1_SIZE, )
@@ -31,12 +32,12 @@ class CriticNet(nn.Module):
         self.conv6.weight.data.normal_(0, 0.1)
 
         self.rnn = nn.LSTM(input_size=512,
-                           hidden_size=RNN,
-                           num_layers=1,
+                           hidden_size=OUT_PUT_SIZE,
+                           num_layers=NUM_RNN_LAYER,
                            batch_first=True)
-        self.out = nn.Linear(RNN, action_dim)
+        self.out = nn.Linear(OUT_PUT_SIZE, 1)
 
-    def forward(self, state_agent, state_rider, hidden_cm, actor_out):
+    def forward(self, state_agent, state_rider, actor_out, hidden_cm):
         x = self.conv1(state_agent)
         x = F.relu(x)
         x = self.conv2(x)

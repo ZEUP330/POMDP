@@ -5,18 +5,19 @@ import numpy as np
 import torch
 import os
 import time
+import actor
 
 from numpy.core._multiarray_umath import ndarray
 
 import pomdp
 
 DIRECTORY = os.path.dirname(os.path.realpath(__file__))
-IF_RENDER = True
+IF_RENDER = False
 ENV_NAME = 'BipedalWalkerHardcore-v2'
 EPISODE = 10
-MAX_STEP = 20
-ACTION_DIM = 0
-STATE_DIM = 0
+MAX_STEP = 20  # self.environment.spec.max_episode_steps = 2000
+ACTION_DIM = 4
+STATE_DIM = 24
 MEMORY_SIZE = 3000
 LEARNING = False
 
@@ -32,9 +33,9 @@ if __name__ == "__main__":
         state = env.reset()
         ep_reward = 0.
         ep_info = 0.
-        init_actor_hidden1_c = agent.state_initializer(shape=(1, 1, agent.Actor_eval.rnn_size), mode='g')
+        init_actor_hidden1_c = agent.state_initializer(shape=(actor.NUM_RNN_LAYER, 1, agent.Actor_eval.out_put_size), mode='g')
         # output(or cell) hidden state
-        init_actor_hidden1_m = agent.state_initializer(shape=(1, 1, agent.Actor_eval.rnn_size), mode='g')
+        init_actor_hidden1_m = agent.state_initializer(shape=(actor.NUM_RNN_LAYER, 1, agent.Actor_eval.out_put_size), mode='g')
         # memory hidden state
         actor_init_hidden_cm = (torch.from_numpy(init_actor_hidden1_c), torch.from_numpy(init_actor_hidden1_m))
 
@@ -45,17 +46,32 @@ if __name__ == "__main__":
             action, actor_last_hidden_cm = agent.choose_action(state, actor_init_hidden_cm)
             action = action.reshape(-1, action.size)
             next_state, reward, done, info = env.step(action[0])
+
             ep_reward += reward
+            if step + 1 == MAX_STEP:
+                done = True
+
+            # ### for test
+            state = np.array([step for x in range(24)])
+            action = np.array([step for x in range(4)])
+            next_state = np.array([step+1 for x in range(24)])
+            # ### for test
+
             # -------store the transition -------
-            agent.store_transition(state, reward, action, next_state, step, episode)
+            agent.store_transition(state, reward, action, next_state, done, step, episode)
+
+            # ### for test
+            if episode == 5 and step == 4:
+                agent.learning(step)
+            # ### for test
 
             if pomdp.REPLAY_BUFFER_SIZE == agent.buffer_counter:
-                agent.learning()
+                agent.learning(step)
 
             state = next_state
             actor_init_hidden_cm = actor_last_hidden_cm
 
-            if done or step+1 == MAX_STEP:
+            if done:
                 end = time.time()
                 print('episode{0}:reward:{1}, time={2:.2f}'.format(episode, ep_reward, end-start))
                 if best_reward < ep_reward:
