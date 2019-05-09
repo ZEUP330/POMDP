@@ -16,19 +16,19 @@ class CriticNet(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(CriticNet, self).__init__()
         self.out_put_size = OUT_PUT_SIZE
-        self.conv1 = nn.Conv2d(in_channels=14, out_channels=64, kernel_size=1, stride=LAYER1_SIZE,)
+        self.conv1 = nn.Conv2d(in_channels=14, out_channels=64, kernel_size=1, stride=1, padding=0)
         self.conv1.weight.data.normal_(0, 0.1)
-        self.conv2 = nn.Conv2d(64, 128, 1, LAYER1_SIZE, )
+        self.conv2 = nn.Conv2d(64, 128, 1, 1, )
         self.conv2.weight.data.normal_(0, 0.1)
 
-        self.conv3 = nn.Conv2d(10, 64, 1, LAYER1_SIZE, )
+        self.conv3 = nn.Conv2d(10, 64, 1, 1, )
         self.conv3.weight.data.normal_(0, 0.1)
-        self.conv4 = nn.Conv2d(64, 128, 1, LAYER1_SIZE, )
+        self.conv4 = nn.Conv2d(64, 128, 1, 1, )
         self.conv4.weight.data.normal_(0, 0.1)
 
-        self.conv5 = nn.Conv2d(action_dim, 64, 1, LAYER1_SIZE, )
+        self.conv5 = nn.Conv2d(action_dim, 64, 1, 1, )
         self.conv5.weight.data.normal_(0, 0.1)
-        self.conv6 = nn.Conv2d(64, 256, 1, LAYER1_SIZE, )
+        self.conv6 = nn.Conv2d(64, 256, 1, 1, )
         self.conv6.weight.data.normal_(0, 0.1)
 
         self.rnn = nn.LSTM(input_size=512,
@@ -54,7 +54,7 @@ class CriticNet(nn.Module):
         z = F.relu(z)
 
         x = torch.cat((x.float(), y.float(), z.float()), dim=1)
-        x = x.reshape(-1, 1, 512)
+        x = x.reshape(-1, actor_out.shape[2], 512)
         x, hidden_cm = self.rnn(x, hidden_cm)
         actions_value = self.out(x)
         return actions_value, hidden_cm

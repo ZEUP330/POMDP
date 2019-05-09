@@ -107,7 +107,7 @@ class ReplayBuffer(object):
 
     def add(self, state, action, reward, new_state, done, epi, time_step):
         t0 = time.time()
-        experience = [epi, time_step, state, action, reward, reward, new_state, done]
+        experience = np.array([epi, time_step, state, action, reward, reward, new_state, done])
         # Will do prioritisation with the second reward!
 
         if self.initial_add is True:  # add the first element
