@@ -209,12 +209,12 @@ class DDPG_LSTM(object):
         self.ctrain.step()
         i = 0
         # Train Actor:while updated critic,we declared the dQda. Hence sess,run(dQda*dadParam_actor),then optimise actor
-        for i in range(update_length):  # todo in here the i all become 4
-            actor_init_h_batch_stack = actor_init_h_batch_trace = (
-            np.expand_dims(self.actor_init_h_batch[0], axis=2), np.expand_dims(self.actor_init_h_batch[1], axis=2))
-            critic_init_h_batch_stack = critic_init_h_batch_trace = (
-            np.expand_dims(self.critic_init_h_batch[0], axis=2), np.expand_dims(self.critic_init_h_batch[1], axis=2))
-            if i == 0:
+        for item in range(update_length):  # todo in here the i all become 4
+            actor_init_h_batch_trace = (np.expand_dims(self.actor_init_h_batch[0], axis=2),
+                                        np.expand_dims(self.actor_init_h_batch[1], axis=2))
+            critic_init_h_batch_trace = (np.expand_dims(self.critic_init_h_batch[0], axis=2),
+                                         np.expand_dims(self.critic_init_h_batch[1], axis=2))
+            if item == 0:
                 actor_init_h_batch_stack = actor_init_h_batch_trace
                 critic_init_h_batch_stack = critic_init_h_batch_trace
             else:
@@ -224,34 +224,49 @@ class DDPG_LSTM(object):
                 critic_init_h_batch_stack = (
                     np.concatenate((critic_init_h_batch_stack[0], critic_init_h_batch_trace[0]), axis=2),
                     np.concatenate((critic_init_h_batch_stack[1], critic_init_h_batch_trace[1]), axis=2))
-            agent_ex = np.expand_dims(np.expand_dims(state_trace_batch[:, i, :14], 2), 2)
+            agent_ex = np.expand_dims(np.expand_dims(state_trace_batch[:, item, :14], 2), 2)
             agent_ = torch.from_numpy(agent_ex.astype(np.float32))
-            rider_ex = np.expand_dims(np.expand_dims(state_trace_batch[:, i, 14:], 2), 2)
+            rider_ex = np.expand_dims(np.expand_dims(state_trace_batch[:, item, 14:], 2), 2)
             rider_ = torch.from_numpy(rider_ex.astype(np.float32))
             action_trace_batch_for_gradients, actor_init_h_batch = self.Actor_eval.forward(agent_, rider_,
                                                                                            self.actor_init_h_batch)
-            action_ex = np.expand_dims(np.expand_dims(action_trace_batch[:, i], 2), 2)
+            action_ex = np.expand_dims(np.expand_dims(action_trace_batch[:, item], 2), 2)
             action_ = torch.from_numpy(action_ex.astype(np.float32))
             not_use, critic_init_h_batch = self.Critic_eval.forward(agent_, rider_, action_, self.critic_init_h_batch)
-            if i == 0:
+            if item == 0:
                 action_trace_batch_for_gradients_stack = action_trace_batch_for_gradients.cpu().data.numpy()
             else:
                 action_trace_batch_for_gradients_stack = np.concatenate(
                  (action_trace_batch_for_gradients_stack, action_trace_batch_for_gradients.cpu().data.numpy()), axis=1)
 
-        state_trace_batch_stack = np.reshape(state_trace_batch, (self.batch_size*update_length, 1, self.state_dim))
-        action_trace_batch_stack = np.reshape(action_trace_batch, (self.batch_size*update_length, 1, self.action_dim))
+        state_trace_batch_stack = np.reshape(state_trace_batch, (self.batch_size*update_length, self.state_dim, 1))
+        action_trace_batch_stack = np.reshape(action_trace_batch, (self.batch_size*update_length, self.action_dim, 1))
         action_trace_batch_for_gradients_stack = np.reshape(action_trace_batch_for_gradients_stack,
-                                                            (self.batch_size*update_length, 1, self.action_dim))
-        hidden_a1 = actor_init_h_batch_stack[0].reshape(actor.NUM_RNN_LAYER, self.batch_size*update_length, self.Actor_eval.out_put_size)
-        hidden_a2 = actor_init_h_batch_stack[1].reshape(actor.NUM_RNN_LAYER, self.batch_size*update_length, self.Actor_eval.out_put_size)
-        actor_init_h_batch_stack = (hidden_a1, hidden_a2)
-        hidden_c1 = critic_init_h_batch_stack[0].reshape(actor.NUM_RNN_LAYER, self.batch_size*update_length, self.Critic_eval.out_put_size)
-        hidden_c2 = critic_init_h_batch_stack[1].reshape(actor.NUM_RNN_LAYER, self.batch_size*update_length, self.Critic_eval.out_put_size)
-        critic_init_h_batch_stack = (hidden_c1, hidden_c2)
+                                                            (self.batch_size*update_length, self.action_dim, 1))
+        hidden_a1 = actor_init_h_batch_stack[0].reshape(actor.NUM_RNN_LAYER, self.batch_size*update_length,
+                                                        self.Actor_eval.out_put_size)
+        hidden_a2 = actor_init_h_batch_stack[1].reshape(actor.NUM_RNN_LAYER, self.batch_size*update_length,
+                                                        self.Actor_eval.out_put_size)
+        hidden_c1 = critic_init_h_batch_stack[0].reshape(actor.NUM_RNN_LAYER, self.batch_size*update_length,
+                                                         self.Critic_eval.out_put_size)
+        hidden_c2 = critic_init_h_batch_stack[1].reshape(actor.NUM_RNN_LAYER, self.batch_size*update_length,
+                                                         self.Critic_eval.out_put_size)
+        actor_init_h_batch_stack = (torch.from_numpy(hidden_a1.astype(np.float32)),
+                                    torch.from_numpy(hidden_a2.astype(np.float32)))
+        critic_init_h_batch_stack = (torch.from_numpy(hidden_c1.astype(np.float32)),
+                                     torch.from_numpy(hidden_c2.astype(np.float32)))
 
-
-
+        state_trace_batch_stack = np.expand_dims(state_trace_batch_stack, axis=3)
+        action_trace_batch_for_gradients_stack = np.expand_dims(action_trace_batch_for_gradients_stack, axis=3)
+        agent_stack = torch.from_numpy(state_trace_batch_stack[:, :14, :, :].astype(np.float32))
+        rider_stack = torch.from_numpy(state_trace_batch_stack[:, 14:, :, :].astype(np.float32))
+        action_stack = torch.from_numpy(action_trace_batch_for_gradients_stack.astype(np.float32))
+        actor_loss, hidden_ = self.Critic_eval(agent_stack, rider_stack, action_stack, critic_init_h_batch_stack)
+        # Optimize the actor
+        actor_loss = actor_loss.mean()
+        self.atrain.zero_grad()
+        actor_loss.backward()
+        self.atrain.step()
 
 
 if __name__ == "__main__":

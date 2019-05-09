@@ -12,10 +12,10 @@ from numpy.core._multiarray_umath import ndarray
 import pomdp
 
 DIRECTORY = os.path.dirname(os.path.realpath(__file__))
-IF_RENDER = False
+IF_RENDER = True
 ENV_NAME = 'BipedalWalkerHardcore-v2'
-EPISODE = 10
-MAX_STEP = 20  # self.environment.spec.max_episode_steps = 2000
+EPISODE = 1000
+MAX_STEP = 200  # self.environment.spec.max_episode_steps = 2000
 ACTION_DIM = 4
 STATE_DIM = 24
 MEMORY_SIZE = 3000
@@ -40,7 +40,7 @@ if __name__ == "__main__":
         actor_init_hidden_cm = (torch.from_numpy(init_actor_hidden1_c), torch.from_numpy(init_actor_hidden1_m))
 
         for step in range(MAX_STEP):
-            if IF_RENDER:
+            if IF_RENDER and pomdp.REPLAY_BUFFER_SIZE < agent.buffer_counter:
                 env.render()
             # ----here is the choose action -----
             action, actor_last_hidden_cm = agent.choose_action(state, actor_init_hidden_cm)
@@ -52,20 +52,20 @@ if __name__ == "__main__":
                 done = True
 
             # ### for test
-            state = np.array([step for x in range(24)])
-            action = np.array([step for x in range(4)])
-            next_state = np.array([step+1 for x in range(24)])
+            # state = np.array([step for x in range(24)])
+            # action = np.array([step for x in range(4)])
+            # next_state = np.array([step+1 for x in range(24)])
             # ### for test
 
             # -------store the transition -------
             agent.store_transition(state, reward, action, next_state, done, step, episode)
 
             # ### for test
-            if episode == 5 and step == 4:
-                agent.learning(step)
+            # if episode == 5 and step == 4:
+            #     agent.learning(step)
             # ### for test
 
-            if pomdp.REPLAY_BUFFER_SIZE == agent.buffer_counter:
+            if pomdp.REPLAY_BUFFER_SIZE < agent.buffer_counter:
                 agent.learning(step)
 
             state = next_state
