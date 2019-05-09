@@ -1,14 +1,11 @@
 from typing import Tuple, Union
-
 import gym
 import numpy as np
 import torch
 import os
 import time
 import actor
-
 from numpy.core._multiarray_umath import ndarray
-
 import pomdp
 
 DIRECTORY = os.path.dirname(os.path.realpath(__file__))
@@ -37,10 +34,11 @@ if __name__ == "__main__":
         # output(or cell) hidden state
         init_actor_hidden1_m = agent.state_initializer(shape=(actor.NUM_RNN_LAYER, 1, agent.Actor_eval.out_put_size), mode='g')
         # memory hidden state
-        actor_init_hidden_cm = (torch.from_numpy(init_actor_hidden1_c), torch.from_numpy(init_actor_hidden1_m))
-
+        actor_init_hidden_cm = (torch.from_numpy(init_actor_hidden1_c).cuda(), torch.from_numpy(init_actor_hidden1_m).cuda())
+        if episode + 500 % 50 == 0:
+            agent.save_model()
         for step in range(MAX_STEP):
-            if IF_RENDER and pomdp.REPLAY_BUFFER_SIZE < agent.buffer_counter:
+            if IF_RENDER and pomdp.REPLAY_BUFFER_SIZE + 2000 < agent.buffer_counter:
                 env.render()
             # ----here is the choose action -----
             action, actor_last_hidden_cm = agent.choose_action(state, actor_init_hidden_cm)
@@ -65,7 +63,7 @@ if __name__ == "__main__":
             #     agent.learning(step)
             # ### for test
 
-            if pomdp.REPLAY_BUFFER_SIZE < agent.buffer_counter:
+            if pomdp.REPLAY_BUFFER_SIZE < agent.buffer_counter:  # and step % 5 == 0:
                 agent.learning(step)
 
             state = next_state

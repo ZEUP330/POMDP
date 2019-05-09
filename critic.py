@@ -2,15 +2,15 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-import time
-import math
+import torchviz
+import os
 
 # Hyper-Parameters
 LAYER1_SIZE = 192
 LEARNING_RATE = 0.001
-NUM_RNN_LAYER = 4
-TAU = 0.
+NUM_RNN_LAYER = 1
 OUT_PUT_SIZE = 384
+
 
 class CriticNet(nn.Module):
     def __init__(self, state_dim, action_dim):
@@ -58,3 +58,26 @@ class CriticNet(nn.Module):
         x, hidden_cm = self.rnn(x, hidden_cm)
         actions_value = self.out(x)
         return actions_value, hidden_cm
+
+
+def state_initializer(shape, mode='g'):
+    if mode == 'z':  # Zero
+        initial = np.zeros(shape=shape)
+    elif mode == 'g':  # Gaussian
+        initial = np.random.normal(loc=0., scale=1./float(shape[1]), size=shape)
+    else:  # May do some adaptive initializer can be built in later
+        raise NotImplementedError
+    return initial.astype(np.float32)
+
+
+if __name__ == "__main__":
+    os.environ["PATH"] += os.pathsep + 'D:/graphviz-2.38/release/bin'
+    model = CriticNet(2, 4).cuda()
+    agent = torch.randn(32, 14, 1, 6).cuda()
+    rider = torch.randn(32, 10, 1, 6).cuda()
+    action = torch.randn(32, 4, 1, 6).cuda()
+    hidden_a = torch.from_numpy(state_initializer(shape=(NUM_RNN_LAYER, 192, OUT_PUT_SIZE), mode='z')).cuda()
+    critic_init_h_batch = (hidden_a, hidden_a)
+    score, (hidden_a, hidden_m) = model(agent, rider, action, critic_init_h_batch)
+
+    torchviz.make_dot(score.mean(), params=dict(model.named_parameters()))
