@@ -11,7 +11,7 @@ import pomdp
 DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 IF_RENDER = True
 ENV_NAME = 'BipedalWalkerHardcore-v2'
-EPISODE = 1000
+EPISODE = 30000
 MAX_STEP = 200  # self.environment.spec.max_episode_steps = 2000
 ACTION_DIM = 4
 STATE_DIM = 24
@@ -35,10 +35,10 @@ if __name__ == "__main__":
         init_actor_hidden1_m = agent.state_initializer(shape=(actor.NUM_RNN_LAYER, 1, agent.Actor_eval.out_put_size), mode='g')
         # memory hidden state
         actor_init_hidden_cm = (torch.from_numpy(init_actor_hidden1_c).cuda(), torch.from_numpy(init_actor_hidden1_m).cuda())
-        if episode + 500 % 50 == 0:
+        if episode + 5000 % 100 == 0:
             agent.save_model()
         for step in range(MAX_STEP):
-            if IF_RENDER and pomdp.REPLAY_BUFFER_SIZE + 2000 < agent.buffer_counter:
+            if IF_RENDER and pomdp.REPLAY_BUFFER_SIZE*10 < agent.buffer_counter:
                 env.render()
             # ----here is the choose action -----
             action, actor_last_hidden_cm = agent.choose_action(state, actor_init_hidden_cm)
