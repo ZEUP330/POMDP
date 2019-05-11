@@ -13,7 +13,7 @@ import replay_buffer
 GAMMA = 0.99
 DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 ENV_NAME = 'BipedalWalkerHardcore-v2'
-REPLAY_BUFFER_SIZE = int(1e5)
+REPLAY_BUFFER_SIZE = int(5e5)
 BATCH_SIZE = 100
 OPT_LENGTH = 90
 LR_C = 0.001
@@ -97,7 +97,7 @@ class DDPG_LSTM(object):
     def save_model(self):
         torch.save(self.Actor_eval, 'Actor_eval.pkl')
         torch.save(self.Actor_target, 'Actor_target.pkl')
-        torch.save(self.Actor_target, 'Actor_target.pkl')
+        torch.save(self.Critic_eval, 'Critic_eval.pkl')
         torch.save(self.Critic_target, 'Critic_target.pkl')
 
     def learning(self, step):
