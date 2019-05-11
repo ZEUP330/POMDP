@@ -42,9 +42,10 @@ class Robot(object):
         # self.end_goal[0] = np.clip(np.random.normal(self.end_goal[0], var), -1, 1)
         # self.end_goal[1] = np.clip(np.random.normal(self.end_goal[1], var), -1, 1)
         # self.end_goal[2] = np.clip(np.random.normal(self.end_goal[2], var), -1, 1)
-        self.end_goal[0] = np.random.normal(self.end_goal[0], var)%1-0.5
-        self.end_goal[1] = np.random.normal(self.end_goal[1], var)%1-0.5
-        self.end_goal[2] = np.random.normal(self.end_goal[2], var)%1-0.5
+        self.end_goal[0] = np.random.normal(self.end_goal[0], var)%0.5 + 0.4
+        self.end_goal[1] = np.random.normal(self.end_goal[1], var)%0.54-0.27
+        self.end_goal[2] = np.random.normal(self.end_goal[2], var)
+        self.end_goal[2] = 0.75
         x = self.end_goal[0]
         y = self.end_goal[1]
         z = self.end_goal[2]

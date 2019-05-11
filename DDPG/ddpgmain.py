@@ -12,7 +12,7 @@ import numpy as np
 import cv2
 MAX_EPISODES = 2000
 MAX_EP_STEPS = 200
-MEMORY_CAPACITY = 3000
+MEMORY_CAPACITY = 30000
 
 if __name__ == "__main__":
     robot = Robot()

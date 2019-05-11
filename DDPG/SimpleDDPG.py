@@ -19,7 +19,7 @@ LR_C = 0.001    # learning rate for critic
 GAMMA = 0.9     # reward discount
 TAU = 0.01      # soft replacement
 MEMORY_CAPACITY = 30000
-BATCH_SIZE = 20
+BATCH_SIZE = 60
 N_STATES = 3
 RENDER = False
 EPSILON = 0.9
@@ -29,13 +29,15 @@ EPSILON = 0.9
 class ANet(nn.Module):   # ae(s)=a
     def __init__(self):
         super(ANet, self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, 3, 1, 1)
-        self.conv2 = nn.Conv2d(64, 128, 3, 1, 1)
-        self.conv3 = nn.Conv2d(128, 256, 3, 1, 1)
-        self.pool = nn.MaxPool2d(5, 2, 2)
+        self.vgg = models.resnet18(True)
+        # self.conv1 = nn.Conv2d(3, 64, 3, 1, 1)
+        # self.conv2 = nn.Conv2d(64, 128, 3, 1, 1)
+        # self.conv3 = nn.Conv2d(128, 256, 3, 1, 1)
+        # self.pool = nn.MaxPool2d(5, 2, 2)
         self.fc1 = nn.Linear(3, 16)
         self.fc2 = nn.Linear(16, 64)
-        self.fc3 = nn.Linear(64 + 512 * 28 * 28, 3)
+        # self.fc3 = nn.Linear(64 + 512 * 28 * 28, 3)
+        self.fc3 = nn.Linear(64 + 2000, 3)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -46,14 +48,16 @@ class ANet(nn.Module):   # ae(s)=a
                 m.bias.data.zero_()
 
     def forward(self, rgb, dep, s):
-        rgb = F.relu(self.pool(self.conv1(rgb)))
-        rgb = F.relu(self.pool(self.conv2(rgb)))
-        rgb = F.relu(self.pool(self.conv3(rgb)))
-        rgb = rgb.reshape((-1, 256 * 28 * 28))
-        dep = F.relu(self.pool(self.conv1(dep)))
-        dep = F.relu(self.pool(self.conv2(dep)))
-        dep = F.relu(self.pool(self.conv3(dep)))
-        dep = dep.reshape((-1, 256 * 28 * 28))
+        # rgb = F.relu(self.pool(self.conv1(rgb)))
+        # rgb = F.relu(self.pool(self.conv2(rgb)))
+        # rgb = F.relu(self.pool(self.conv3(rgb)))
+        # rgb = rgb.reshape((-1, 256 * 28 * 28))
+        # dep = F.relu(self.pool(self.conv1(dep)))
+        # dep = F.relu(self.pool(self.conv2(dep)))
+        # dep = F.relu(self.pool(self.conv3(dep)))
+        # dep = dep.reshape((-1, 256 * 28 * 28))
+        rgb = self.vgg(rgb)
+        dep = self.vgg(dep)
         a = F.relu(self.fc1(s))
         x = F.relu(self.fc2(a))
         x =torch.cat((rgb.float(), dep.float(), x.float()), dim=1)
@@ -64,14 +68,16 @@ class ANet(nn.Module):   # ae(s)=a
 class CNet(nn.Module):   # ae(s)=a
     def __init__(self):
         super(CNet,self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, 3, 1, 1)
-        self.conv2 = nn.Conv2d(64, 128, 3, 1, 1)
-        self.conv3 = nn.Conv2d(128, 256, 3, 1, 1)
-        self.pool = nn.MaxPool2d(5, 2, 2)
+        # self.conv1 = nn.Conv2d(3, 64, 3, 1, 1)
+        # self.conv2 = nn.Conv2d(64, 128, 3, 1, 1)
+        # self.conv3 = nn.Conv2d(128, 256, 3, 1, 1)
+        # self.pool = nn.MaxPool2d(5, 2, 2)
+        self.vgg = models.resnet18(True)
         # self.dense121 = models.resnet50(False)  # (1, 1000)
         self.fc1 = nn.Linear(6, 16)
         self.fc2 = nn.Linear(16, 64)
-        self.fc3 = nn.Linear(64 + 512 * 28 * 28, 1)
+        # self.fc3 = nn.Linear(64 + 512 * 28 * 28, 1)
+        self.fc3 = nn.Linear(64 + 2000, 3)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -83,14 +89,16 @@ class CNet(nn.Module):   # ae(s)=a
 
     def forward(self, rgb, dep, s, a):
         x = torch.cat((s, a), 1)
-        rgb = F.relu(self.pool(self.conv1(rgb)))
-        rgb = F.relu(self.pool(self.conv2(rgb)))
-        rgb = F.relu(self.pool(self.conv3(rgb)))
-        rgb = rgb.reshape((-1, 256 * 28 * 28))
-        dep = F.relu(self.pool(self.conv1(dep)))
-        dep = F.relu(self.pool(self.conv2(dep)))
-        dep = F.relu(self.pool(self.conv3(dep)))
-        dep = dep.reshape((-1, 256 * 28 * 28))
+        # rgb = F.relu(self.pool(self.conv1(rgb)))
+        # rgb = F.relu(self.pool(self.conv2(rgb)))
+        # rgb = F.relu(self.pool(self.conv3(rgb)))
+        # rgb = rgb.reshape((-1, 256 * 28 * 28))
+        # dep = F.relu(self.pool(self.conv1(dep)))
+        # dep = F.relu(self.pool(self.conv2(dep)))
+        # dep = F.relu(self.pool(self.conv3(dep)))
+        # dep = dep.reshape((-1, 256 * 28 * 28))
+        rgb = self.vgg(rgb)
+        dep = self.vgg(dep)
         a = F.relu(self.fc1(x))
         x = F.relu(self.fc2(a))
         x =torch.cat((rgb.float(), dep.float(), x.float()), dim=1)
@@ -132,7 +140,7 @@ class DDPG(object):
 
     def learn(self):
         self.f += 1
-        self.f %= 50
+        self.f %= 5
         sample_index = np.random.choice(MEMORY_CAPACITY, BATCH_SIZE)
         b_memory = self.memory[sample_index, :]
         b_s = torch.FloatTensor((b_memory[:, :3]).reshape(-1, 3)).to(self.device)
@@ -156,9 +164,10 @@ class DDPG(object):
         self.ctrain.step()
 
         # Compute actor loss
-        actor_loss = -self.Critic_eval(self.rgb, self.dep, b_s, self.Actor_eval(self.rgb, self.dep, b_s)).mean()
+        ac = self.Critic_eval(self.rgb, self.dep, b_s, self.Actor_eval(self.rgb, self.dep, b_s)).mean()
+        actor_loss = 100/(ac * ac)
         if self.f == 0:
-            print(actor_loss)
+            print(ac)
         # Optimize the actor
         self.atrain.zero_grad()
         actor_loss.backward()
